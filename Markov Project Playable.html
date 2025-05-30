@@ -3,17 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multiplier Game</title>
+  <title>Better Bustabit</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    body::before {
+    content: "";
+        background-image: url(Background_image.avif);
+        background-size: cover;
+        background-position: center;
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.9;
+        z-index: -1;
+       
+    }
     body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 2em;
+        font-family: 'Comic Sans MS', cursive, sans-serif;
+        text-align: center;
+        padding: 2em;
+        position: relative;
+        background-color: white;
     }
     canvas {
-      max-width: 600px;
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      max-width: 900px; /* 1.5x larger than before */
+      width: 600px;
       margin: 2em auto;
+      background-color: white;
     }
     button, input {
       padding: 10px;
@@ -24,48 +42,36 @@
 </head>
 <body>
   <h1>Multiplier Game</h1>
-  <p>Your Balance: $<span id="balance">100</span></p>
+  <h2>Your Balance: $<span id="balance">100</span></h2>
   <input type="number" id="betAmount" placeholder="Enter your bet" min="1">
   <button id="startGameBtn">Play</button>
   <button id="cashOutBtn" disabled>Cash Out</button>
   <p id="status">Enter a bet and click Play to start.</p>
-  <canvas id="multiplierChart"></canvas> 
+  <canvas id="multiplierChart"></canvas>
 
   <script>
-    const values = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
-    const transitionMatrix = [
-      [1.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-      [0.000, 0.000, 1.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-      [0.010, 0.050, 0.099, 0.842, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-      [0.340, 0.000, 0.033, 0.066, 0.561, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-      [0.505, 0.000, 0.000, 0.025, 0.050, 0.421, 0.000, 0.000, 0.000, 0.000, 0.000],
-      [0.604, 0.000, 0.000, 0.000, 0.020, 0.040, 0.337, 0.000, 0.000, 0.000, 0.000],
-      [0.670, 0.000, 0.000, 0.000, 0.000, 0.017, 0.033, 0.281, 0.000, 0.000, 0.000],
-      [0.717, 0.000, 0.000, 0.000, 0.000, 0.000, 0.014, 0.028, 0.241, 0.000, 0.000],
-      [0.752, 0.000, 0.000, 0.000, 0.000, 0.000, 0.012, 0.025, 0.211, 0.000, 0.000],
-      [0.780, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.011, 0.022, 0.187, 0.000],
-      [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 1.000]
-    ];
-
     let balance = 100;
     let bet = 0;
-    let currentValue = 1;
+    let currentValue = 1.0;
     let data = [currentValue];
     let time = [0];
     let interval;
     let timeCounter = 0;
     let gameEnded = true;
+    let highestValue = currentValue;
 
     function simulateRound(current) {
-      const index = values.indexOf(current);
-      const probs = transitionMatrix[index];
-      let sum = 0;
+      const m = current;
+      const probAdvance = 0.8415 / m;
+      const probStay = 0.099 / m;
+      const probDown = 0.0495 / m;
+      const probBust = 1 - (0.99 / m);
+
       const r = Math.random();
-      for (let i = 0; i < probs.length; i++) {
-        sum += probs[i];
-        if (r <= sum) return values[i];
-      }
-      return 0;
+      if (r < probBust) return 0;
+      if (r < probBust + probDown) return +(Math.max(1, (m - 0.1)).toFixed(1));
+      if (r < probBust + probDown + probStay) return +m.toFixed(1);
+      return +(m + 0.1).toFixed(1);
     }
 
     const ctx = document.getElementById('multiplierChart').getContext('2d');
@@ -84,7 +90,7 @@
       options: {
         animation: false,
         scales: {
-          x: { title: { display: true, text: 'Time (s)' } },
+          x: { title: { display: true, text: 'Time (s)' }, min: 0 },
           y: { title: { display: true, text: 'Multiplier' }, min: 0 }
         }
       }
@@ -93,10 +99,11 @@
     function updateGame() {
       if (gameEnded) return;
       currentValue = simulateRound(currentValue);
-      timeCounter += 2;
+      timeCounter += 1;
       data.push(currentValue);
       time.push(timeCounter);
       chart.update();
+      if (currentValue > highestValue) highestValue = currentValue;
 
       if (currentValue === 0) {
         endGame(0);
@@ -109,11 +116,13 @@
       document.getElementById('cashOutBtn').disabled = true;
 
       if (finalValue === 0) {
-        document.getElementById('status').textContent = `You crashed! Lost $${bet}.`;
+        document.getElementById('status').textContent = 
+          `You crashed! Lost $${bet}. Highest multiplier reached: ${highestValue}x.`;
       } else {
         const winnings = finalValue * bet;
         balance += winnings;
-        document.getElementById('status').textContent = `You cashed out at ${finalValue}x and won $${winnings.toFixed(2)}.`;
+        document.getElementById('status').textContent = 
+          `You cashed out at ${finalValue}x and won $${winnings.toFixed(2)}.`;
       }
 
       document.getElementById('balance').textContent = balance.toFixed(2);
@@ -137,10 +146,11 @@
       bet = betInput;
       balance -= bet;
       document.getElementById('balance').textContent = balance.toFixed(2);
-      currentValue = 1;
+      currentValue = 1.0;
       data = [currentValue];
       time = [0];
       timeCounter = 0;
+      highestValue = currentValue;
       chart.data.labels = time;
       chart.data.datasets[0].data = data;
       chart.update();
@@ -148,7 +158,7 @@
       document.getElementById('status').textContent = 'Game running...';
       gameEnded = false;
       document.getElementById('cashOutBtn').disabled = false;
-      interval = setInterval(updateGame, 2000);
+      interval = setInterval(updateGame, 1000); // 1 second intervals
     });
   </script>
 </body>
