@@ -25,6 +25,7 @@
         padding: 2em;
         position: relative;
         background-color: white;
+        color: white;
     }
     canvas {
       font-family: 'Comic Sans MS', cursive, sans-serif;
@@ -41,12 +42,12 @@
   </style>
 </head>
 <body>
-  <h1>Multiplier Game</h1>
+  <h1>Better Bustabit</h1>
   <h2>Your Balance: $<span id="balance">100</span></h2>
   <input type="number" id="betAmount" placeholder="Enter your bet" min="1">
   <button id="startGameBtn">Play</button>
   <button id="cashOutBtn" disabled>Cash Out</button>
-  <p id="status">Enter a bet and click Play to start.</p>
+  <h3 id="status">Enter a bet and click Play to start.</h3>
   <canvas id="multiplierChart"></canvas>
 
   <script>
