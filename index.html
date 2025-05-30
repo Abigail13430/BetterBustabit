@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiplier Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+    canvas {
+      max-width: 600px;
+      margin: 2em auto;
+    }
+    button, input {
+      padding: 10px;
+      font-size: 1.1em;
+      margin: 0.6em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Multiplier Game</h1>
+  <p>Your Balance: $<span id="balance">100</span></p>
+  <input type="number" id="betAmount" placeholder="Enter your bet" min="1">
+  <button id="startGameBtn">Play</button>
+  <button id="cashOutBtn" disabled>Cash Out</button>
+  <p id="status">Enter a bet and click Play to start.</p>
+  <canvas id="multiplierChart"></canvas> 
+
+  <script>
+    const values = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+    const transitionMatrix = [
+      [1.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+      [0.000, 0.000, 1.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+      [0.010, 0.050, 0.099, 0.842, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+      [0.340, 0.000, 0.033, 0.066, 0.561, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
+      [0.505, 0.000, 0.000, 0.025, 0.050, 0.421, 0.000, 0.000, 0.000, 0.000, 0.000],
+      [0.604, 0.000, 0.000, 0.000, 0.020, 0.040, 0.337, 0.000, 0.000, 0.000, 0.000],
+      [0.670, 0.000, 0.000, 0.000, 0.000, 0.017, 0.033, 0.281, 0.000, 0.000, 0.000],
+      [0.717, 0.000, 0.000, 0.000, 0.000, 0.000, 0.014, 0.028, 0.241, 0.000, 0.000],
+      [0.752, 0.000, 0.000, 0.000, 0.000, 0.000, 0.012, 0.025, 0.211, 0.000, 0.000],
+      [0.780, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.011, 0.022, 0.187, 0.000],
+      [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 1.000]
+    ];
+
+    let balance = 100;
+    let bet = 0;
+    let currentValue = 1;
+    let data = [currentValue];
+    let time = [0];
+    let interval;
+    let timeCounter = 0;
+    let gameEnded = true;
+
+    function simulateRound(current) {
+      const index = values.indexOf(current);
+      const probs = transitionMatrix[index];
+      let sum = 0;
+      const r = Math.random();
+      for (let i = 0; i < probs.length; i++) {
+        sum += probs[i];
+        if (r <= sum) return values[i];
+      }
+      return 0;
+    }
+
+    const ctx = document.getElementById('multiplierChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: time,
+        datasets: [{
+          label: 'Multiplier',
+          data: data,
+          fill: false,
+          borderColor: 'rgb(75, 192, 192)',
+          tension: 0.1
+        }]
+      },
+      options: {
+        animation: false,
+        scales: {
+          x: { title: { display: true, text: 'Time (s)' } },
+          y: { title: { display: true, text: 'Multiplier' }, min: 0 }
+        }
+      }
+    });
+
+    function updateGame() {
+      if (gameEnded) return;
+      currentValue = simulateRound(currentValue);
+      timeCounter += 2;
+      data.push(currentValue);
+      time.push(timeCounter);
+      chart.update();
+
+      if (currentValue === 0) {
+        endGame(0);
+      }
+    }
+
+    function endGame(finalValue) {
+      clearInterval(interval);
+      gameEnded = true;
+      document.getElementById('cashOutBtn').disabled = true;
+
+      if (finalValue === 0) {
+        document.getElementById('status').textContent = `You crashed! Lost $${bet}.`;
+      } else {
+        const winnings = finalValue * bet;
+        balance += winnings;
+        document.getElementById('status').textContent = `You cashed out at ${finalValue}x and won $${winnings.toFixed(2)}.`;
+      }
+
+      document.getElementById('balance').textContent = balance.toFixed(2);
+      if (balance <= 0) {
+        document.getElementById('status').textContent += " You're out of money! Refresh to restart.";
+        document.getElementById('startGameBtn').disabled = true;
+      }
+    }
+
+    document.getElementById('cashOutBtn').addEventListener('click', () => {
+      if (!gameEnded) endGame(currentValue);
+    });
+
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+      const betInput = parseFloat(document.getElementById('betAmount').value);
+      if (isNaN(betInput) || betInput <= 0 || betInput > balance) {
+        alert('Please enter a valid bet amount within your balance.');
+        return;
+      }
+
+      bet = betInput;
+      balance -= bet;
+      document.getElementById('balance').textContent = balance.toFixed(2);
+      currentValue = 1;
+      data = [currentValue];
+      time = [0];
+      timeCounter = 0;
+      chart.data.labels = time;
+      chart.data.datasets[0].data = data;
+      chart.update();
+
+      document.getElementById('status').textContent = 'Game running...';
+      gameEnded = false;
+      document.getElementById('cashOutBtn').disabled = false;
+      interval = setInterval(updateGame, 2000);
+    });
+  </script>
+</body>
+</html>
